@@ -51,7 +51,9 @@ public class AppServlet extends HttpServlet {
         Map<String, Object> user = currentUser(request);
         if (user == null) { response.sendRedirect(request.getContextPath() + "/login"); return; }
         String expected = (String) request.getSession().getAttribute("csrfToken");
-        if (expected == null || !expected.equals(request.getParameter("csrf"))) {
+        String suppliedToken = request.getParameter("csrf");
+        if (expected == null || suppliedToken == null || !java.security.MessageDigest.isEqual(
+                expected.getBytes(java.nio.charset.StandardCharsets.UTF_8), suppliedToken.getBytes(java.nio.charset.StandardCharsets.UTF_8))) {
             flash(request, "Security token expired. Refresh the page and retry.");
             redirect(request, response, safeView(request.getPathInfo())); return;
         }

@@ -99,4 +99,3 @@ Do not delete the `.env` file; it contains your local configuration. Never uploa
 - **Browser shows 404:** Verify the deployment and use `/campuslab/login`.
 - **Login reports a database error:** Check the MySQL configuration in `.env` and review the Tomcat logs.
 - **Port 8080 already in use:** Check for an existing Tomcat process before starting another instance.
-

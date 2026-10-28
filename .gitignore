@@ -69,3 +69,15 @@ $RECYCLE.BIN/
 .env.development.local
 .env.test.local
 .env.production.local
+# Java crash dumps and profiling output
+hs_err_pid*
+replay_pid*
+*.hprof
+
+# NetBeans private/local state
+.nb-gradle/
+.nbproject/private/
+
+# Local embedded database artifacts
+*.mv.db
+*.trace.db

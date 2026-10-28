@@ -16,8 +16,11 @@ public final class Database {
 
     public static Connection connect() throws Exception {
         Class.forName("com.mysql.cj.jdbc.Driver");
-        String url = EnvConfig.get("DB_URL", "jdbc:mysql://localhost:3306/campuslab?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC");
-        String user = EnvConfig.get("DB_USER", "root");
+        String url = EnvConfig.get("DB_URL", "jdbc:mysql://localhost:3306/campuslab?createDatabaseIfNotExist=true&serverTimezone=UTC");
+        String user = EnvConfig.get("DB_USER", "").trim();
+        if (user.isEmpty()) {
+            throw new IllegalStateException("DB_USER is required. Configure your local .env file or set the DB_USER environment variable.");
+        }
         String password = EnvConfig.get("DB_PASSWORD", "");
         return DriverManager.getConnection(url, user, password);
     }
@@ -55,26 +58,35 @@ public final class Database {
                         "CONSTRAINT fk_submission_lab FOREIGN KEY (lab_id) REFERENCES labs(id) ON DELETE CASCADE, " +
                         "CONSTRAINT fk_submission_student FOREIGN KEY (student_id) REFERENCES app_users(id) ON DELETE CASCADE, " +
                         "CONSTRAINT uq_lab_student UNIQUE (lab_id, student_id)) ENGINE=InnoDB");
-                seedUser(connection, "CampusLab Administrator", "admin@campuslab.local", "Admin@123", "ADMIN");
-                seedUser(connection, "Demo Student", "student@campuslab.local", "Student@123", "STUDENT");
+                bootstrapAdministrator(connection);
                 seedDemoData(connection);
                 initialized = true;
             }
         }
     }
 
-    private static void seedUser(Connection connection, String name, String email, String password, String role) throws Exception {
-        try (var check = connection.prepareStatement("SELECT id FROM app_users WHERE email = ?")) {
+    /** Creates the first administrator only when explicitly configured by the operator. */
+    private static void bootstrapAdministrator(Connection connection) throws Exception {
+        String email = EnvConfig.get("BOOTSTRAP_ADMIN_EMAIL", "").trim();
+        String password = EnvConfig.get("BOOTSTRAP_ADMIN_PASSWORD", "");
+        String name = EnvConfig.get("BOOTSTRAP_ADMIN_NAME", "CampusLab Administrator").trim();
+        if (email.isEmpty() && password.isEmpty()) return;
+        if (email.isEmpty() || password.isEmpty()) {
+            throw new IllegalStateException("Set both BOOTSTRAP_ADMIN_EMAIL and BOOTSTRAP_ADMIN_PASSWORD to create the initial administrator.");
+        }
+        if (password.length() < 12) {
+            throw new IllegalStateException("BOOTSTRAP_ADMIN_PASSWORD must be at least 12 characters long.");
+        }
+        try (var check = connection.prepareStatement("SELECT id FROM app_users WHERE LOWER(email)=LOWER(?)")) {
             check.setString(1, email);
             try (ResultSet rs = check.executeQuery()) { if (rs.next()) return; }
         }
         PasswordUtil.PasswordRecord record = PasswordUtil.hash(password);
-        try (var insert = connection.prepareStatement("INSERT INTO app_users(full_name,email,password_hash,password_salt,role) VALUES(?,?,?,?,?)")) {
-            insert.setString(1, name);
-            insert.setString(2, email);
+        try (var insert = connection.prepareStatement("INSERT INTO app_users(full_name,email,password_hash,password_salt,role) VALUES(?,?,?,?,'ADMIN')")) {
+            insert.setString(1, name.isEmpty() ? "CampusLab Administrator" : name);
+            insert.setString(2, email.toLowerCase(java.util.Locale.ROOT));
             insert.setString(3, record.hash());
             insert.setString(4, record.salt());
-            insert.setString(5, role);
             insert.executeUpdate();
         }
     }
@@ -95,12 +107,10 @@ public final class Database {
             }
         }
         if (count(connection, "projects") == 0) {
-            long studentId = firstId(connection, "SELECT id FROM app_users WHERE email='student@campuslab.local'");
-            try (var insert = connection.prepareStatement("INSERT INTO projects(title,description,tech_stack,status,owner_id) VALUES(?,?,?,'IN_PROGRESS',?)")) {
+            try (var insert = connection.prepareStatement("INSERT INTO projects(title,description,tech_stack,status,owner_id) VALUES(?,?,?,'IN_PROGRESS',NULL)")) {
                 insert.setString(1, "CampusLab — College Lab & Project Management System");
                 insert.setString(2, "A unified desktop and web system for managing lab exercises, student projects and submissions.");
                 insert.setString(3, "Java, Swing, JSP, Servlets, JDBC, MySQL, Maven, Tomcat");
-                insert.setLong(4, studentId);
                 insert.executeUpdate();
             }
         }
@@ -115,7 +125,7 @@ public final class Database {
     private static long firstId(Connection connection, String sql) throws Exception {
         try (Statement statement = connection.createStatement(); ResultSet rs = statement.executeQuery(sql)) {
             if (rs.next()) return rs.getLong(1);
-            throw new IllegalStateException("Unable to initialise demo data: missing required database record.");
+            throw new IllegalStateException("Unable to initialise sample data: required database record is missing.");
         }
     }
 }

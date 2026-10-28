@@ -9,8 +9,8 @@ import java.awt.*;
 import java.util.Map;
 
 public class LoginFrame extends JFrame {
-    private final JTextField email = new JTextField("admin@campuslab.local", 24);
-    private final JPasswordField password = new JPasswordField("Admin@123", 24);
+    private final JTextField email = new JTextField(24);
+    private final JPasswordField password = new JPasswordField(24);
     private final CampusLabService service = new CampusLabService();
     private final JButton login = new JButton("Sign in");
 
@@ -39,7 +39,7 @@ public class LoginFrame extends JFrame {
         login.setBackground(new Color(43, 78, 145)); login.setForeground(Color.WHITE);
         login.setFocusPainted(false);
         form.add(login);
-        JLabel help = new JLabel("Demo: admin@campuslab.local / Admin@123");
+        JLabel help = new JLabel("Sign in with an account created by your administrator.");
         help.setFont(help.getFont().deriveFont(11f)); help.setForeground(new Color(92, 104, 126));
         root.add(brand, BorderLayout.NORTH); root.add(form, BorderLayout.CENTER); root.add(help, BorderLayout.SOUTH);
         setContentPane(root);

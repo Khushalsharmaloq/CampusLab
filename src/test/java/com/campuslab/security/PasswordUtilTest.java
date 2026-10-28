@@ -16,4 +16,15 @@ class PasswordUtilTest {
         PasswordUtil.PasswordRecord record = PasswordUtil.hash("ExamplePassword!123");
         assertFalse(PasswordUtil.verify("wrong-password", record.salt(), record.hash()));
     }
+
+    @Test void eachHashUsesAnIndependentSalt() {
+        PasswordUtil.PasswordRecord first = PasswordUtil.hash("ExamplePassword!123");
+        PasswordUtil.PasswordRecord second = PasswordUtil.hash("ExamplePassword!123");
+        assertNotEquals(first.salt(), second.salt());
+        assertNotEquals(first.hash(), second.hash());
+    }
+
+    @Test void malformedStoredValuesFailClosed() {
+        assertFalse(PasswordUtil.verify("password", "not-base64!", "also-not-base64!"));
+    }
 }

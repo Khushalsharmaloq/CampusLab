@@ -19,9 +19,7 @@ public class AuthServlet extends HttpServlet {
 
     @Override protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         if ("/logout".equals(request.getServletPath())) {
-            HttpSession session = request.getSession(false);
-            if (session != null) session.invalidate();
-            response.sendRedirect(request.getContextPath() + "/login");
+            response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
             return;
         }
         if (request.getSession(false) != null && request.getSession(false).getAttribute("user") != null) {
@@ -39,8 +37,23 @@ public class AuthServlet extends HttpServlet {
 
     @Override protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         request.setCharacterEncoding("UTF-8");
-        String expected = (String) request.getSession(true).getAttribute("csrfToken");
-        if (expected == null || !expected.equals(request.getParameter("csrf"))) {
+        if ("/logout".equals(request.getServletPath())) {
+            HttpSession logoutSession = request.getSession(false);
+            String logoutToken = logoutSession == null ? null : (String) logoutSession.getAttribute("csrfToken");
+            String supplied = request.getParameter("csrf");
+            if (logoutToken == null || supplied == null || !java.security.MessageDigest.isEqual(
+                    logoutToken.getBytes(java.nio.charset.StandardCharsets.UTF_8), supplied.getBytes(java.nio.charset.StandardCharsets.UTF_8))) {
+                response.sendError(HttpServletResponse.SC_FORBIDDEN);
+                return;
+            }
+            logoutSession.invalidate();
+            response.sendRedirect(request.getContextPath() + "/login");
+            return;
+        }
+        HttpSession existingSession = request.getSession(false);
+        String expected = existingSession == null ? null : (String) existingSession.getAttribute("csrfToken");
+        if (expected == null || !java.security.MessageDigest.isEqual(expected.getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                String.valueOf(request.getParameter("csrf")).getBytes(java.nio.charset.StandardCharsets.UTF_8))) {
             request.setAttribute("error", "Your session expired. Refresh the page and try again.");
             request.getRequestDispatcher("/WEB-INF/views/login.jsp").forward(request, response); return;
         }
